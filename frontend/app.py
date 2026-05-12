@@ -1,15 +1,39 @@
-"""
-Exercise 02 — Streamlit Dashboard
+import os
+import requests
+import streamlit as st
 
-Implement a Streamlit frontend that consumes the Node Registry API.
+API_URL = os.environ.get("API_URL", "http://api:8080")
 
-The dashboard must:
-- Display a table of all registered nodes (GET /api/nodes from the API)
-- Show a form to register a new node (POST /api/nodes)
-- Allow deleting a node by name (DELETE /api/nodes/{name})
-- Show a health status indicator (GET /health)
+st.title("Node Registry")
 
-The API runs at the URL in the API_URL environment variable (default: http://api:8080).
-"""
+health = requests.get(f"{API_URL}/health").json()
+st.write(f"API status: {health['status']} | DB: {health['db']} | Active nodes: {health['nodes_count']}")
 
-# TODO: Implement your Streamlit dashboard here
+st.subheader("Nodes")
+nodes = requests.get(f"{API_URL}/api/nodes").json()
+if nodes:
+    st.table(nodes)
+else:
+    st.info("No nodes registered.")
+
+st.subheader("Register Node")
+name = st.text_input("Name")
+host = st.text_input("Host")
+port = st.number_input("Port", min_value=1, max_value=65535, value=8080)
+if st.button("Register"):
+    r = requests.post(f"{API_URL}/api/nodes", json={"name": name, "host": host, "port": port})
+    if r.status_code == 201:
+        st.success("Node registered.")
+        st.rerun()
+    else:
+        st.error(r.text)
+
+st.subheader("Delete Node")
+del_name = st.text_input("Node name to delete")
+if st.button("Delete"):
+    r = requests.delete(f"{API_URL}/api/nodes/{del_name}")
+    if r.status_code == 204:
+        st.success("Node deleted.")
+        st.rerun()
+    else:
+        st.error(r.text)
